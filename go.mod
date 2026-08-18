@@ -6,7 +6,6 @@ require (
 	charm.land/lipgloss/v2 v2.0.5
 	github.com/charmbracelet/fang v1.0.0
 	github.com/charmbracelet/x/exp/charmtone v0.0.0-20250603201427-c31516f43444
-	github.com/prometheus/common v0.70.0
 	github.com/shirou/gopsutil/v4 v4.26.6
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
