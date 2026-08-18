@@ -15,7 +15,6 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/fang"
 	"github.com/charmbracelet/x/exp/charmtone"
-	"github.com/prometheus/common/version"
 	"github.com/shirou/gopsutil/v4/net"
 	"github.com/shirou/gopsutil/v4/process"
 	"github.com/spf13/cobra"
@@ -24,13 +23,26 @@ import (
 
 // Color and column style variables
 var (
-	usernameStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("45")).Bold(true)
-	uidStyle         = lipgloss.NewStyle().Foreground(lipgloss.Color("11")).Bold(true)
-	columnTitleStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("244"))
-	helpTitleStyle   = lipgloss.NewStyle().Foreground(charmtone.Charple).Bold(true)
-	portStyle        = lipgloss.NewStyle().Foreground(lipgloss.Color("6")).Bold(true)
-	pidStyle         = lipgloss.NewStyle().Foreground(lipgloss.Color("6")).Bold(true)
-	cmdStyle         = lipgloss.NewStyle().Foreground(lipgloss.Color("6")).Bold(true)
+	usernameStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("45")).Bold(true)
+
+	uidStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("11")).Bold(true)
+
+	columnTitleStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.Color("244"))
+
+	helpTitleStyle = lipgloss.NewStyle().
+			Foreground(charmtone.Charple).Bold(true)
+
+	portStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("6")).Bold(true)
+
+	pidStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("6")).Bold(true)
+
+	cmdStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("6")).Bold(true)
 
 	portCol     = lipgloss.NewStyle().Width(5)
 	pidCol      = lipgloss.NewStyle().Width(6)
@@ -41,12 +53,16 @@ var (
 // Flag variables
 type config struct {
 	search struct {
-		port uint32
-		pid  int32
-		cmd  string
 		user []string
+		cmd  string
+		pid  int32
+		port uint32
 	}
+	unwrap bool
 }
+
+// Set version
+var version = "dev"
 
 var cfg config
 
@@ -87,6 +103,10 @@ along with the owning process ID and command.`,
 		"Filter by username or UID (comma-separated values)",
 	)
 
+	cobraCmd.Flags().BoolVarP(&cfg.unwrap, "unwrap", "l", false,
+		"Show the full command output",
+	)
+
 	cobraCmd.Flags().AddFlagSet(searchFS)
 
 	// =============================================
@@ -96,17 +116,16 @@ along with the owning process ID and command.`,
 	// Set new flag display settings
 	cobraCmd.Flags().SetInterspersed(false)
 	cobraCmd.Flags().SortFlags = false
-	cobraCmd.Flags().PrintDefaults()
 
 	// Remove completion and help commands (--help is kept)
 	cobraCmd.CompletionOptions.DisableDefaultCmd = true
 	cobraCmd.SetHelpCommand(&cobra.Command{Hidden: true})
 
-	// CLI Version
-	cobraCmd.Version = version.Print("uports")
-
 	// Execute cobra command
-	if err := fang.Execute(context.Background(), cobraCmd); err != nil {
+	if err := fang.Execute(
+		context.Background(),
+		cobraCmd,
+		fang.WithVersion(version)); err != nil {
 		os.Exit(1)
 	}
 }
@@ -114,9 +133,9 @@ along with the owning process ID and command.`,
 func runApp(cobraCmd *cobra.Command, args []string) error {
 
 	type userConnection struct {
+		cmd       string
 		port      uint32
 		pid       int32
-		cmd       string
 		nSockets  uint32
 		colorPort bool
 		colorPid  bool
@@ -360,7 +379,7 @@ func runApp(cobraCmd *cobra.Command, args []string) error {
 		// Render username and uid
 		fmt.Println(
 			usernameStyle.Render(
-				fmt.Sprintf("%s", username)),
+				username),
 			uidStyle.Render(
 				fmt.Sprintf("(%s)", u.Uid),
 			))
@@ -386,7 +405,7 @@ func runApp(cobraCmd *cobra.Command, args []string) error {
 
 			if c.colorCmd {
 				c.cmd = cmdStyle.Render(c.cmd)
-			} else {
+			} else if !cfg.unwrap {
 				c.cmd = cmdCol.Render(c.cmd)
 			}
 
