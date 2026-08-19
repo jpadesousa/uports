@@ -1,0 +1,62 @@
+name: Build Release Binaries 
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.name }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+            name: linux-amd64
+            extension: ""
+
+          - goos: linux
+            goarch: arm64
+            name: linux-arm64
+            extension: ""
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: stable
+
+      - name: Install ARM64 cross compiler
+        if: matrix.goarch == 'arm64'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+
+      - name: Build
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: 1
+          CC: ${{ matrix.goarch == 'arm64' && 'aarch64-linux-gnu-gcc' || 'gcc' }}
+          VERSION: ${{ gitea.ref_name }}
+        run: |
+          mkdir -p dist
+          go build \
+            -ldflags="-X main.version=${VERSION}" \
+            -o "dist/uports-${{ matrix.name }}${{ matrix.extension }}" \
+            .
+
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: uports-${{ matrix.name }}
+          path: dist/uports-${{ matrix.name }}${{ matrix.extension }}
